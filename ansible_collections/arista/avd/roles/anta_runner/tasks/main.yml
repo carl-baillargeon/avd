@@ -51,6 +51,7 @@
       csv_output: "{{ anta_report_csv_path }}"
       md_output: "{{ anta_report_md_path }}"
       json_output: "{{ anta_report_json_path }}"
+      save_evidence: "{{ anta_report_save_evidence }}"
       filters:
         hide_statuses: "{{ anta_report_hide_statuses | arista.avd.default([]) }}"
   register: anta

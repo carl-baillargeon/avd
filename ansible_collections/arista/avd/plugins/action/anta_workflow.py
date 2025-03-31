@@ -97,6 +97,7 @@ ARGUMENT_SPEC = {
             "csv_output": {"type": "str"},
             "md_output": {"type": "str"},
             "json_output": {"type": "str"},
+            "save_evidence": {"type": "bool", "default": False},
             "filters": {
                 "type": "dict",
                 "options": {
@@ -213,11 +214,26 @@ def run_anta(devices: list[str]) -> ResultManager:
 
     result_manager, inventory, catalog = build_anta_runner_objects(devices)
     tags = set(get(PLUGIN_ARGS, "runner.tags", default=[])) or None
+    save_evidence = get(PLUGIN_ARGS, "report.save_evidence")
 
     LOGGER.info("running ANTA in process %s for devices: %s", current_process().name, ", ".join(devices))
-    run(anta_runner(result_manager, inventory, catalog, tags=tags, dry_run=get(PLUGIN_ARGS, "runner.dry_run")))
-    LOGGER.info("ANTA process %s completed", current_process().name)
+    run(
+        anta_runner(
+            manager=result_manager, inventory=inventory, catalog=catalog, tags=tags, dry_run=get(PLUGIN_ARGS, "runner.dry_run"), save_evidence=save_evidence
+        )
+    )
 
+    # Pydantic dynamically created models are not pickable unless defined globally
+    # https://docs.pydantic.dev/latest/concepts/models/#dynamic-model-creation
+    if save_evidence:
+        for result in result_manager.results:
+            if result.has_evidence:
+                for command in result.evidence.commands:
+                    # Nullifying the unpickable fields, we don't use them anyways
+                    command.params = None
+                    command.template = None
+
+    LOGGER.info("ANTA process %s completed", current_process().name)
     return result_manager
 
 
@@ -227,6 +243,7 @@ def build_reports(batch_results: list[ResultManager], report_settings: dict) -> 
     csv_output_path = get(report_settings, "csv_output")
     md_output_path = get(report_settings, "md_output")
     json_output_path = get(report_settings, "json_output")
+    save_evidence = get(report_settings, "save_evidence")
 
     # Merge all results
     result_manager = ResultManager()
@@ -257,8 +274,9 @@ def build_reports(batch_results: list[ResultManager], report_settings: dict) -> 
     if json_output_path:
         LOGGER.info("generating JSON report at %s", json_output_path)
         path = Path(json_output_path)
+        data = result_manager.serialize_results(with_evidence=save_evidence)
         with path.open("w", encoding="UTF-8") as file:
-            file.write(result_manager.json)
+            json.dump(data, file, indent=2)
 
 
 def extract_hostvars(device_list: list[str], hostvars: Mapping) -> dict:

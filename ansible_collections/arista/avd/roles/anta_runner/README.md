@@ -179,6 +179,10 @@ anta_runner_batch_size: 5
 
 # Run ANTA in dry-run mode. This will generate the tests but not execute them.
 anta_runner_dry_run: false
+
+# Store test inputs and command outputs in the JSON report for external analysis.
+# WARNING: This can *significantly* increase the report size.
+anta_report_save_evidence: false
 ```
 
 !!! tip
