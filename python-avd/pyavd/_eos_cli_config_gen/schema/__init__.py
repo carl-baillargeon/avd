@@ -53875,6 +53875,7 @@ class EosCliConfigGen(EosCliConfigGenRootModel):
                 "address_family_ipv6_multicast": {"type": AddressFamilyIpv6Multicast},
                 "address_family_flow_spec_ipv4": {"type": AddressFamilyFlowSpecIpv4},
                 "address_family_flow_spec_ipv6": {"type": AddressFamilyFlowSpecIpv6},
+                "validate_bgp_peers": {"type": bool, "default": False},
                 "eos_cli": {"type": str},
             }
             name: str
@@ -53945,6 +53946,12 @@ class EosCliConfigGen(EosCliConfigGenRootModel):
             """Subclass of AvdModel."""
             address_family_flow_spec_ipv6: AddressFamilyFlowSpecIpv6
             """Subclass of AvdModel."""
+            validate_bgp_peers: bool
+            """
+            Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role.
+
+            Default value: `False`
+            """
             eos_cli: str | None
             """
             Multiline EOS CLI rendered directly on the Router BGP, VRF definition in the final EOS
@@ -53981,6 +53988,7 @@ class EosCliConfigGen(EosCliConfigGenRootModel):
                     address_family_ipv6_multicast: AddressFamilyIpv6Multicast | UndefinedType = Undefined,
                     address_family_flow_spec_ipv4: AddressFamilyFlowSpecIpv4 | UndefinedType = Undefined,
                     address_family_flow_spec_ipv6: AddressFamilyFlowSpecIpv6 | UndefinedType = Undefined,
+                    validate_bgp_peers: bool | UndefinedType = Undefined,
                     eos_cli: str | None | UndefinedType = Undefined,
                 ) -> None:
                     """
@@ -54030,6 +54038,7 @@ class EosCliConfigGen(EosCliConfigGenRootModel):
                         address_family_ipv6_multicast: Subclass of AvdModel.
                         address_family_flow_spec_ipv4: Subclass of AvdModel.
                         address_family_flow_spec_ipv6: Subclass of AvdModel.
+                        validate_bgp_peers: Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role.
                         eos_cli:
                            Multiline EOS CLI rendered directly on the Router BGP, VRF definition in the final EOS
                            configuration.

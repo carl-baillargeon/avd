@@ -5279,6 +5279,10 @@ keys:
                 removed: true
                 remove_in_version: 6.0.0
                 new_key: redistribute
+            validate_bgp_peers:
+              type: bool
+              default: false
+              description: Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role.
             eos_cli:
               type: str
               description: |

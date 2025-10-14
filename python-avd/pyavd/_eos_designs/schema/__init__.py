@@ -52120,6 +52120,7 @@ class EosDesigns(EosDesignsRootModel):
                         "ipv6_static_routes": {"type": Ipv6StaticRoutes},
                         "redistribute_static": {"type": bool},
                         "redistribute_connected": {"type": bool, "default": True},
+                        "validate_bgp_peers": {"type": bool, "default": False},
                         "bgp_peers": {"type": BgpPeers},
                         "bgp": {"type": Bgp},
                         "bgp_peer_groups": {"type": BgpPeerGroups},
@@ -52340,6 +52341,12 @@ class EosDesigns(EosDesignsRootModel):
 
                     Default value: `True`
                     """
+                    validate_bgp_peers: bool
+                    """
+                    Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role.
+
+                    Default value: `False`
+                    """
                     bgp_peers: BgpPeers
                     """
                     List of BGP peer definitions.
@@ -52416,6 +52423,7 @@ class EosDesigns(EosDesignsRootModel):
                             ipv6_static_routes: Ipv6StaticRoutes | UndefinedType = Undefined,
                             redistribute_static: bool | None | UndefinedType = Undefined,
                             redistribute_connected: bool | UndefinedType = Undefined,
+                            validate_bgp_peers: bool | UndefinedType = Undefined,
                             bgp_peers: BgpPeers | UndefinedType = Undefined,
                             bgp: Bgp | UndefinedType = Undefined,
                             bgp_peer_groups: BgpPeerGroups | UndefinedType = Undefined,
@@ -52586,6 +52594,7 @@ class EosDesigns(EosDesignsRootModel):
                                 redistribute_connected:
                                    Enable or disable the redistribution of all connected routes to BGP in the VRF. Note this is not
                                    applicable to VRF `default`.
+                                validate_bgp_peers: Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role.
                                 bgp_peers:
                                    List of BGP peer definitions.
                                    This will configure BGP neighbors inside the tenant VRF for peering

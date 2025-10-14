@@ -9198,6 +9198,13 @@ $defs:
                 default: true
                 description: Enable or disable the redistribution of all connected
                   routes to BGP in the VRF. Note this is not applicable to VRF `default`.
+              validate_bgp_peers:
+                documentation_options:
+                  table: network-services-vrfs-bgp-settings
+                type: bool
+                default: false
+                description: Set to true to enable BGP peers validation for the VRF
+                  performed by the `anta_runner` role.
               bgp_peers:
                 documentation_options:
                   table: network-services-vrfs-bgp-settings

@@ -1567,6 +1567,7 @@
     | [<samp>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;ip_address</samp>](## "router_bgp.vrfs.[].address_family_flow_spec_ipv6.neighbors.[].ip_address") | String | Required, Unique |  |  |  |
     | [<samp>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;activate</samp>](## "router_bgp.vrfs.[].address_family_flow_spec_ipv6.neighbors.[].activate") | Boolean |  |  |  |  |
     | [<samp>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;redistribute_routes</samp>](## "router_bgp.vrfs.[].redistribute_routes") <span style="color:red">removed</span> | List |  |  |  | <span style="color:red">This key was removed. Support was removed in AVD version 6.0.0. Use <samp>redistribute</samp> instead.</span> |
+    | [<samp>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;validate_bgp_peers</samp>](## "router_bgp.vrfs.[].validate_bgp_peers") | Boolean |  | `False` |  | Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role. |
     | [<samp>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eos_cli</samp>](## "router_bgp.vrfs.[].eos_cli") | String |  |  |  | Multiline EOS CLI rendered directly on the Router BGP, VRF definition in the final EOS configuration.<br> |
     | [<samp>&nbsp;&nbsp;session_trackers</samp>](## "router_bgp.session_trackers") | List, items: Dictionary |  |  |  |  |
     | [<samp>&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;name</samp>](## "router_bgp.session_trackers.[].name") | String | Required, Unique |  |  | Name of session tracker. |
@@ -4780,6 +4781,9 @@
             neighbors:
               - ip_address: <str; required; unique>
                 activate: <bool>
+
+          # Set to true to enable BGP peers validation for the VRF performed by the `anta_runner` role.
+          validate_bgp_peers: <bool; default=False>
 
           # Multiline EOS CLI rendered directly on the Router BGP, VRF definition in the final EOS configuration.
           eos_cli: <str>
