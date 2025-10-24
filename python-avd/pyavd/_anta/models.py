@@ -14,9 +14,56 @@ from typing import TYPE_CHECKING
 from pyavd._eos_cli_config_gen.schema import EosCliConfigGen
 
 if TYPE_CHECKING:
-    from pyavd.api._anta import InputFactorySettings, MinimalStructuredConfig
+    from anta.models import AntaTest
+
+    from .constants import StructuredConfigKey
+    from .input_factories._base_classes import AntaTestInputFactory
 
 LOGGER = getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class AntaTestSpec:
+    """
+    Represents an ANTA test specification in PyAVD.
+
+    Defines a single ANTA test, the conditions under which it should be generated
+    and the factory used to create its inputs.
+    """
+
+    test_class: type[AntaTest]
+    """The ANTA test class to be used."""
+    conditional_keys: list[StructuredConfigKey] | None = None
+    """
+    An optional list of structured config keys.
+
+    The test will only be generated if these keys are present and non-empty in the device structured config.
+    """
+    input_factory: type[AntaTestInputFactory] | None = None
+    """
+    An optional factory class that generates the `AntaTest.Input` models (inputs) for the test.
+
+    This is required if the `test_class` has an `Input` model with required fields.
+    """
+
+
+@dataclass(frozen=True)
+class EthernetInterface:
+    """Represents an Ethernet interface from the structured configuration."""
+
+    name: str
+    ip_address: str
+    shutdown: bool
+
+
+@dataclass(frozen=True)
+class MinimalStructuredConfig:
+    """Represents a minimal version of a device structured configuration."""
+
+    hostname: str
+    is_deployed: bool
+    dns_domain: str | None
+    ethernet_interfaces: list[EthernetInterface]
 
 
 @dataclass(frozen=True)
@@ -42,8 +89,8 @@ class DeviceTestContext:
 
     hostname: str
     structured_config: EosCliConfigGen
-    minimal_structured_configs: dict[str, MinimalStructuredConfig]
-    input_factory_settings: InputFactorySettings
+    fabric_data: dict[str, MinimalStructuredConfig]
+    allow_bgp_vrfs: bool
 
     @cached_property
     def is_vtep(self) -> bool:
@@ -63,7 +110,7 @@ class DeviceTestContext:
         ]
 
         # Skip VRF processing if disabled
-        if not self.input_factory_settings.allow_bgp_vrfs:
+        if not self.allow_bgp_vrfs:
             LOGGER.debug("<%s> Skipped BGP VRF peers - VRF processing disabled", self.hostname)
             return neighbors
 
@@ -87,7 +134,7 @@ class DeviceTestContext:
         ]
 
         # Skip VRF processing if disabled
-        if not self.input_factory_settings.allow_bgp_vrfs:
+        if not self.allow_bgp_vrfs:
             LOGGER.debug("<%s> Skipped BGP VRF RFC5549 peers - VRF processing disabled", self.hostname)
             return neighbor_interfaces
 
@@ -128,7 +175,7 @@ class DeviceTestContext:
         if (
             from_default_vrf
             and neighbor_interface.peer
-            and (neighbor_interface.peer not in self.minimal_structured_configs or not self.minimal_structured_configs[neighbor_interface.peer].is_deployed)
+            and (neighbor_interface.peer not in self.fabric_data or not self.fabric_data[neighbor_interface.peer].is_deployed)
         ):
             LOGGER.debug("<%s> Skipped BGP peer %s - Peer not in fabric or not deployed", self.hostname, identifier)
             return None
@@ -164,11 +211,7 @@ class DeviceTestContext:
             return None
 
         # When peer field is set, check if the peer device is in the fabric and deployed
-        if (
-            from_default_vrf
-            and neighbor.peer
-            and (neighbor.peer not in self.minimal_structured_configs or not self.minimal_structured_configs[neighbor.peer].is_deployed)
-        ):
+        if from_default_vrf and neighbor.peer and (neighbor.peer not in self.fabric_data or not self.fabric_data[neighbor.peer].is_deployed):
             LOGGER.debug("<%s> Skipped BGP peer %s - Peer not in fabric or not deployed", self.hostname, identifier)
             return None
 

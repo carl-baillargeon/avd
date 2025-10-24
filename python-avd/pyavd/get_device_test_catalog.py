@@ -7,11 +7,10 @@ from logging import getLogger
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from pyavd._utils import get
-
 if TYPE_CHECKING:
     from ._anta.lib import AntaCatalog
-    from .api._anta import AvdCatalogGenerationSettings, MinimalStructuredConfig
+    from ._anta.models import MinimalStructuredConfig
+    from .api._anta import AvdCatalogGenerationSettings
 
 LOGGER = getLogger(__name__)
 
@@ -19,7 +18,7 @@ LOGGER = getLogger(__name__)
 def get_device_test_catalog(
     hostname: str,
     structured_config: dict,
-    minimal_structured_configs: dict[str, MinimalStructuredConfig],
+    fabric_data: dict[str, MinimalStructuredConfig],
     settings: AvdCatalogGenerationSettings | None = None,
 ) -> AntaCatalog:
     """
@@ -30,46 +29,34 @@ def get_device_test_catalog(
     An optional instance of `pyavd.api._anta.AvdCatalogGenerationSettings` can be provided
     to customize the catalog generation process, such as running only specific tests, or skipping certain tests.
 
-    AVD uses minimal structured configurations of all devices containing only the required data.
-    Make sure to create a single `minimal_structured_configs` dictionary using `pyavd.api._anta.get_minimal_structured_configs`
-    for consistent data across catalog generations.
+    AVD needs fabric-wide data of all devices to generate the catalog. Make sure to create a single `fabric_data`
+    dictionary using `pyavd.api._anta.get_fabric_data` for consistent data across catalog generations.
 
     Test definitions can be omitted from the catalog if the required data is not available for a specific device.
     You can configure logging and set the log level to DEBUG to see which test definitions are skipped and the reason why.
 
-    Parameters
-    ----------
-    hostname : str
-        The hostname of the device for which the catalog is being generated.
-    structured_config : dict
-        The structured configuration of the device.
-        Variables should be converted and validated according to AVD `eos_cli_config_gen` schema first using `pyavd.validate_structured_config`.
-    minimal_structured_configs : dict[str, MinimalStructuredConfig]
-        Dictionary keyed by hostname containing minimal structured configurations for all devices.
-        Must be generated using `pyavd.api._anta.get_minimal_structured_configs`.
-    settings : AvdCatalogGenerationSettings, optional
-        The settings object to customize the catalog generation process.
-        Must be an instance of `pyavd.api._anta.AvdCatalogGenerationSettings`, by default `None`.
+    Args:
+        hostname: The hostname of the device for which the catalog is being generated.
+        structured_config: The structured configuration of the device.
+            Variables should be converted and validated according to AVD `eos_cli_config_gen` schema first using `pyavd.validate_structured_config`.
+        fabric_data: A dictionary keyed by hostname containing a `MinimalStructuredConfig` dataclass instance for each device.
+            Must be generated using `pyavd.api._anta.get_fabric_data`.
+        settings: Optional settings object to customize the catalog generation process.
 
     Returns:
-    -------
-    AntaCatalog
         The generated ANTA catalog for the device.
     """
+    from dataclasses import asdict  # noqa: PLC0415
+
     from ._anta.factories import create_catalog  # noqa: PLC0415
     from ._anta.index import AVD_TEST_INDEX, AVD_TEST_NAMES  # noqa: PLC0415
-    from ._anta.lib import AntaCatalog  # noqa: PLC0415
     from ._anta.utils import dump_anta_catalog  # noqa: PLC0415
     from .api._anta import AvdCatalogGenerationSettings  # noqa: PLC0415
 
     settings = settings or AvdCatalogGenerationSettings()
 
     start_time = perf_counter()
-    LOGGER.debug("<%s> Generating ANTA catalog with settings: %s", hostname, settings.model_dump(mode="json"))
-
-    if settings.ignore_is_deployed is False and not get(structured_config, "metadata.is_deployed", default=False):
-        LOGGER.info("<%s> Device is not deployed, returning an empty catalog", hostname)
-        return AntaCatalog()
+    LOGGER.debug("<%s> Generating ANTA catalog with settings: %s", hostname, asdict(settings))
 
     # Check for invalid test names across all filters
     invalid_tests = {
@@ -84,8 +71,10 @@ def get_device_test_catalog(
 
     # Remove any tests from run_tests that are in skip_tests
     if settings.run_tests and settings.skip_tests:
-        settings.run_tests = [test for test in settings.run_tests if test not in settings.skip_tests]
-        LOGGER.debug("<%s> Cleaned up run_tests after removing skipped tests: %s", hostname, settings.run_tests)
+        run_tests = [test for test in settings.run_tests if test not in settings.skip_tests]
+        LOGGER.debug("<%s> Cleaned up run_tests after removing skipped tests: %s", hostname, run_tests)
+    else:
+        run_tests = settings.run_tests
 
     # Filter test specs based on skip_tests and run_tests
     filtered_test_specs = []
@@ -95,15 +84,12 @@ def get_device_test_catalog(
         if test.test_class.name in settings.skip_tests:
             continue
         # If run_tests is specified, only include tests in that set
-        if settings.run_tests and test.test_class.name not in settings.run_tests:
+        if run_tests and test.test_class.name not in run_tests:
             continue
 
         filtered_test_specs.append(test)
 
-    # Add custom test specs, avoiding duplicates
-    filtered_test_specs.extend([test for test in settings.custom_test_specs if test not in filtered_test_specs])
-
-    catalog = create_catalog(hostname, structured_config, minimal_structured_configs, settings.input_factory_settings, filtered_test_specs)
+    catalog = create_catalog(hostname, structured_config, fabric_data, settings, filtered_test_specs)
 
     if settings.output_dir:
         dump_anta_catalog(hostname, catalog, settings.output_dir)

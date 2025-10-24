@@ -19,22 +19,24 @@ from .logs import LogMessage, TestLoggerAdapter
 from .models import DeviceTestContext
 
 if TYPE_CHECKING:
-    from pyavd.api._anta import InputFactorySettings, MinimalStructuredConfig, TestSpec
+    from pyavd.api._anta import AvdCatalogGenerationSettings
+
+    from .models import AntaTestSpec, MinimalStructuredConfig
 
 
 def create_catalog(
     hostname: str,
     structured_config: dict[str, Any],
-    minimal_structured_configs: dict[str, MinimalStructuredConfig],
-    input_factory_settings: InputFactorySettings,
-    test_specs: list[TestSpec],
+    fabric_data: dict[str, MinimalStructuredConfig],
+    settings: AvdCatalogGenerationSettings,
+    test_specs: list[AntaTestSpec],
 ) -> AntaCatalog:
     """Create an ANTA catalog for a device from the provided test specs."""
     device_context = DeviceTestContext(
         hostname=hostname,
         structured_config=EosCliConfigGen._load(structured_config),
-        minimal_structured_configs=minimal_structured_configs,
-        input_factory_settings=input_factory_settings,
+        fabric_data=fabric_data,
+        allow_bgp_vrfs=settings.allow_bgp_vrfs,
     )
     tests: list[AntaTestDefinition] = []
     for test in test_specs:
@@ -59,7 +61,7 @@ def create_catalog(
     return AntaCatalog(tests=tests)
 
 
-def create_test_definitions(test_spec: TestSpec, device_context: DeviceTestContext) -> list[AntaTestDefinition] | None:
+def create_test_definitions(test_spec: AntaTestSpec, device_context: DeviceTestContext) -> list[AntaTestDefinition] | None:
     """Create the AntaTestDefinition's from this TestSpec instance."""
     logger_adapter = TestLoggerAdapter(logger=getLogger(__name__), extra={"device": device_context.hostname, "test": test_spec.test_class.name})
 

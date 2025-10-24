@@ -7,143 +7,143 @@ from __future__ import annotations
 
 from pyavd._anta.input_factories import *
 from pyavd._anta.lib.tests import *
-from pyavd.api._anta import TestSpec
 
 from .constants import StructuredConfigKey
+from .models import AntaTestSpec
 
-AVD_TEST_INDEX: list[TestSpec] = [
-    TestSpec(
+AVD_TEST_INDEX: list[AntaTestSpec] = [
+    AntaTestSpec(
         test_class=VerifyAgentLogs,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyAPIHttpsSSL,
         conditional_keys=[StructuredConfigKey.HTTPS_SSL_PROFILE],
         input_factory=VerifyAPIHttpsSSLInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyAVTSpecificPath,
         conditional_keys=[StructuredConfigKey.ROUTER_AVT, StructuredConfigKey.ROUTER_PATH_SELECTION],
         input_factory=VerifyAVTSpecificPathInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyBGPPeerSession,
         conditional_keys=[StructuredConfigKey.ROUTER_BGP],
         input_factory=VerifyBGPPeerSessionInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyCoredump,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyEnvironmentCooling,
         input_factory=VerifyEnvironmentCoolingInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyEnvironmentPower,
         input_factory=VerifyEnvironmentPowerInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyEnvironmentSystemCooling,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyFileSystemUtilization,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyIllegalLACP,
         conditional_keys=[StructuredConfigKey.PORT_CHANNEL_INTERFACES],
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyInterfaceDiscards,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyInterfaceErrDisabled,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyInterfaceErrors,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyInterfaceUtilization,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyInterfacesStatus,
         input_factory=VerifyInterfacesStatusInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyInventory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyPortChannels,
         conditional_keys=[StructuredConfigKey.PORT_CHANNEL_INTERFACES],
         input_factory=VerifyPortChannelsInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyRunningConfigDiffs,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyStormControlDrops,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyLLDPNeighbors,
         conditional_keys=[StructuredConfigKey.ETHERNET_INTERFACES],
         input_factory=VerifyLLDPNeighborsInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyLoggingErrors,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyMaintenance,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyMemoryUtilization,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyMlagConfigSanity,
         conditional_keys=[StructuredConfigKey.MLAG_CONFIGURATION],
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyMlagInterfaces,
         conditional_keys=[StructuredConfigKey.MLAG_CONFIGURATION],
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyMlagStatus,
         conditional_keys=[StructuredConfigKey.MLAG_CONFIGURATION],
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyNTP,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifySpecificPath,
         conditional_keys=[StructuredConfigKey.ROUTER_PATH_SELECTION],
         input_factory=VerifySpecificPathInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyReachability,
         input_factory=VerifyReachabilityInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyReloadCause,
         input_factory=VerifyReloadCauseInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyRoutingProtocolModel,
         conditional_keys=[StructuredConfigKey.SERVICE_ROUTING_PROTOCOLS_MODEL],
         input_factory=VerifyRoutingProtocolModelInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifySpecificIPSecConn,
         conditional_keys=[StructuredConfigKey.ROUTER_PATH_SELECTION],
         input_factory=VerifySpecificIPSecConnInputFactory,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifySTPCounters,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyTemperature,
     ),
-    TestSpec(
+    AntaTestSpec(
         test_class=VerifyTransceiversTemperature,
     ),
-    TestSpec(test_class=VerifyVxlanConfigSanity, conditional_keys=[StructuredConfigKey.VXLAN1_INTERFACE]),
-    TestSpec(
+    AntaTestSpec(test_class=VerifyVxlanConfigSanity, conditional_keys=[StructuredConfigKey.VXLAN1_INTERFACE]),
+    AntaTestSpec(
         test_class=VerifyZeroTouch,
     ),
 ]
