@@ -104,6 +104,7 @@ class ActionModule(AvdActionPlugin):
 
             # Validation with multithreading.
             # As soon as a batch is serialized, retrieve it and submit to the thread pool.
+            # TODO: See if it's "better" to avoid sending the JSON data back to the main process and do the validation/write inside the child processes.
             for future in as_completed(serialize_futures):
                 # TODO: Handle exceptions.
                 batch_results = future.result()
