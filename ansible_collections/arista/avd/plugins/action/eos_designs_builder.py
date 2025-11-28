@@ -28,7 +28,7 @@ PLUGIN_NAME = "arista.avd.eos_designs_builder"
 ARGUMENT_SPEC = {
     "output_dir": {"type": "str", "required": True},
     # TODO: Need to figure out the proper default batch size.
-    "batch_size": {"type": "int", "default": 25},
+    "batch_size": {"type": "int", "default": 10},
 }
 
 # Global variables to share data between processes. Since the plugin is forked, these variables are inherited by child processes.
@@ -182,13 +182,13 @@ def validate_and_write_worker(hostname: str, json_data: str, output_dir: str) ->
     LOGGER.debug("Thread %s | Starting validation for host %s", thread_name, hostname)
 
     # Perform validation in Rust using pyavd-utils.
-    # validated_data = get_validated_data(json_data, "eos_designs")  # noqa: ERA001
-    validated_data = json_data
+    validated_data_result = get_validated_data(json_data, "eos_designs")
 
     file_path = Path(output_dir) / f"{hostname}.json"
 
-    with file_path.open(mode="w", encoding="UTF-8") as file:
-        file.write(validated_data)
+    if validated_data_result.validated_data is not None:
+        with file_path.open(mode="w", encoding="UTF-8") as file:
+            file.write(validated_data_result.validated_data )
 
     elapsed = perf_counter() - start_time
     LOGGER.debug("Thread %s | Finished %s in %.4f seconds.", thread_name, hostname, elapsed)
