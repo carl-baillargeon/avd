@@ -189,6 +189,7 @@ class ActionModule(AvdActionPlugin):
 
             # Handle schema validation errors.
             if result.validation_errors:
+                # TODO: Remove validation_mode.
                 self.result["failed"] = True
 
                 for validation_error in result.validation_errors:
@@ -270,6 +271,7 @@ def _validate_host_worker(host_and_json: tuple[str, str]) -> ValidateWorkerResul
 
         # Store the output data in the result object.
         if validated_data_result.validated_data is not None:
+            # TODO: Write files here using Ansible native tmp structure.
             validated_json = validated_data_result.validated_data
 
     except Exception as e:
