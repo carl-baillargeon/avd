@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import cProfile
+import json
 import pstats
 from collections import ChainMap
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from json import loads as json_loads
 
 from ansible.errors import AnsibleActionFail
 from ansible.parsing.yaml.dumper import AnsibleDumper
@@ -79,14 +81,16 @@ class ActionModule(ActionBase):
 
         # This is an "Ansible Hostvars Manager"-like object where we can retrieve hostvars for each host on-demand.
         # This is special because it contains role, play and task vars as well.
-        hostvars = ActionPluginVars(self)
+        # hostvars = ActionPluginVars(self)
 
         # Get updated templar instance to be passed along to our simplified "templater"
         templar = get_templar(self, task_vars)
 
         pool_manager = PoolManager(Path(output_dir))
 
-        all_inputs, all_hostvars = self.parse_inputs(fabric_hosts, hostvars, result)
+        all_inputs, all_hostvars = self.load_inputs(fabric_hosts, output_dir)
+
+        # all_inputs, all_hostvars = self.parse_inputs(fabric_hosts, hostvars, result)
         if result.get("failed"):
             # Stop here if any of the devices failed input data validation
             if cprofile_file:
@@ -98,10 +102,15 @@ class ActionModule(ActionBase):
 
         avd_switch_facts = self.render_facts(all_inputs=all_inputs, all_hostvars=all_hostvars, pool_manager=pool_manager, templar=templar)
 
+        # Dump to file.
+        facts_output = Path(output_dir) / "avd_switch_facts.json"
+        with facts_output.open(mode="w", encoding="utf-8") as f:
+            json.dump(avd_switch_facts, f, indent=4)
+
         # Save any updated pools.
         result["changed"] = pool_manager.save_updated_pools(dumper_cls=AnsibleDumper)
 
-        result["ansible_facts"] = {"avd_switch_facts": avd_switch_facts}
+        #result["ansible_facts"] = {"avd_switch_facts": avd_switch_facts}
 
         if cprofile_file:
             profiler.disable()
@@ -109,6 +118,24 @@ class ActionModule(ActionBase):
             stats.dump_stats(cprofile_file)
 
         return result
+
+    def load_inputs(self, fabric_hosts: list, output_dir: str) -> tuple[dict[str, EosDesigns], dict[str, dict]]:
+        """Load hostvars for all hosts and load data into EosDesigns classes."""
+        all_inputs: dict[str, EosDesigns] = {}
+        all_hostvars: dict[str, dict] = {}
+
+        output_dir_path = Path(output_dir)
+
+        for host in fabric_hosts:
+            path = output_dir_path / f"{host}.json"
+            data_as_json = path.read_text()
+            data_as_dict = json_loads(data_as_json)
+            inputs = EosDesigns._load(data_as_dict)
+            all_inputs[host] = inputs
+            all_hostvars[host] = data_as_dict
+
+        return all_inputs, all_hostvars
+
 
     def parse_inputs(self, fabric_hosts: list, hostvars: ActionPluginVars, result: dict) -> tuple[dict[str, EosDesigns], dict[str, dict]]:
         """

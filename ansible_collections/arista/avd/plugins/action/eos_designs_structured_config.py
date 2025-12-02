@@ -6,6 +6,7 @@ from __future__ import annotations
 import cProfile
 import json
 import logging
+from pathlib import Path
 import pstats
 from collections import ChainMap
 from typing import Any
@@ -30,11 +31,12 @@ PLUGIN_NAME = "arista.avd.eos_designs_structured_config"
 try:
     from pyavd import load_inputs
     from pyavd._eos_designs.structured_config import get_structured_config_v2
+    from pyavd._eos_designs.schema import EosDesigns
     from pyavd._schema.avdschema import AvdSchema
     from pyavd._utils import get, merge, strip_null_from_data
     from pyavd._utils import template as templater
 except ImportError as e:
-    load_inputs = get_structured_config_v2 = get = merge = RaiseOnUse(
+    load_inputs = get_structured_config_v2 = EosDesigns = get = merge = RaiseOnUse(
         AnsibleActionFail(
             f"The '{PLUGIN_NAME}' plugin requires the 'pyavd' Python library. Got import error",
             orig_exc=e,
@@ -67,6 +69,8 @@ class ActionModule(ActionBase):
             # Not creating structured config
             return result
 
+        input_vars_file = self._task.args.get("input_vars_file")
+        avd_switch_facts_file = self._task.args.get("avd_switch_facts_file")
         eos_designs_custom_templates = self._task.args.get("eos_designs_custom_templates", [])
         filename = str(self._task.args.get("dest", ""))
         file_mode = str(self._task.args.get("mode", "0o664"))
@@ -83,34 +87,41 @@ class ActionModule(ActionBase):
         # Create the "Ansible Hostvars Manager"-like object which includes task, role and play vars,
         # and take the HostVarsVars for this host.
         # All variables will be templated on access and cached by Ansible's tooling.
-        host_hostvars = ActionPluginVars(self)[hostname]
+        # host_hostvars = ActionPluginVars(self)[hostname]
         # The dict() here will force templating of all variables at once, potentially triggering issues for
         # missing variables in inline templates in Ansible 2.19.
-        host_hostvars = dict(host_hostvars)
+        # host_hostvars = dict(host_hostvars)
 
-        avd_switch_facts = get(host_hostvars, "avd_switch_facts", required=True)
+        host_inputs_as_json = Path(input_vars_file).read_text()
+        host_hostvars = json.loads(host_inputs_as_json)
+
+        avd_switch_facts_as_json = Path(avd_switch_facts_file).read_text()
+        avd_switch_facts = json.loads(avd_switch_facts_as_json)
+
+        #avd_switch_facts = get(host_hostvars, "avd_switch_facts", required=True)
 
         # Initialise defaultdict that loads facts from json files on demand.
         all_facts = AvdSwitchFactsDefaultDict(avd_switch_facts)
 
         # Load input vars into the EosDesigns data class.
-        load_inputs_result = load_inputs(host_hostvars)
+        # load_inputs_result = load_inputs(host_hostvars)
 
-        data_validation_errors = parse_load_inputs_result(
-            load_inputs_result=load_inputs_result, hostname=hostname, ansible_display=display, validation_mode=validation_mode
-        )
+        # data_validation_errors = parse_load_inputs_result(
+        #     load_inputs_result=load_inputs_result, hostname=hostname, ansible_display=display, validation_mode=validation_mode
+        # )
 
-        if data_validation_errors or load_inputs_result.inputs is None:
-            # Quickly continue if data validation failed
-            result["failed"] = True
-            result["msg"] = build_result_message(data_validation_errors)
-            return result
+        # if data_validation_errors or load_inputs_result.inputs is None:
+        #     # Quickly continue if data validation failed
+        #     result["failed"] = True
+        #     result["msg"] = build_result_message(data_validation_errors)
+        #     return result
 
         # Get Structured Config from modules in PyAVD using internal api so we can supply our own templar
         try:
             structured_config = get_structured_config_v2(
                 hostname=hostname,
-                inputs=load_inputs_result.inputs,
+                inputs=EosDesigns._load(host_hostvars),
+                #inputs=load_inputs_result.inputs,
                 all_facts=all_facts,
                 hostvars=host_hostvars,
                 templar=self.templar,

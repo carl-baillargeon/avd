@@ -69,6 +69,7 @@ EXTERNAL_LIB_LOGGERS = ["asyncio", "httpcore", "httpx", "requests", "urllib3"]
 The `hpack` logger is intentionally omitted as it is too noisy. It is used by `grpclib`,
 which is a dependency of `cv_workflow`.
 """
+PYAVD_UTILS_LOGGERS = ["included_store", "validation"]
 
 
 def get_avd_log_level(logger_name: str) -> int:
@@ -90,6 +91,9 @@ def get_avd_log_level(logger_name: str) -> int:
     effective_verbosity = min(verbosity, max_defined_verbosity)
 
     level_map = ANSIBLE_VERBOSITY_MAPPING[effective_verbosity]
+
+    if logger_name in PYAVD_UTILS_LOGGERS:
+        return level_map["pyavd"]
 
     # If the logger is not found, it is considered an external library
     return level_map.get(logger_name, level_map["external_libs"])
