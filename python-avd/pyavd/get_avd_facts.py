@@ -6,14 +6,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import MutableMapping
 
     from pyavd._eos_designs.eos_designs_facts.schema import EosDesignsFacts
     from pyavd._eos_designs.schema import EosDesigns
     from pyavd.api.pool_manager import PoolManager
 
 
-def get_avd_facts(all_inputs: dict[str, dict], pool_manager: PoolManager | None = None, digital_twin: bool = False) -> dict[str, EosDesignsFacts]:
+def get_avd_facts(
+    all_inputs: MutableMapping[str, MutableMapping], pool_manager: PoolManager | None = None, digital_twin: bool = False
+) -> dict[str, EosDesignsFacts]:
     """
     Build avd_facts using the AVD eos_designs_facts logic.
 
