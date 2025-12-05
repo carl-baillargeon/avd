@@ -15,9 +15,11 @@ from ansible_collections.arista.avd.plugins.plugin_utils.utils import ActionPlug
 from ansible_collections.arista.avd.plugins.plugin_utils.utils.avd_action_plugin import AvdActionPlugin, AvdLoggingConfig
 
 try:
+    from pyavd_utils.validation import get_validated_data, init_store_from_file
+
     from pyavd._errors import AvdDeprecationWarning, AvdValidationError
     from pyavd._utils import get, strip_empties_from_dict
-    from pyavd_utils.validation import get_validated_data
+    from pyavd.avd_schema_tools import EosDesignsAvdSchemaTools
 
     HAS_PYAVD = True
 except ImportError:
@@ -134,6 +136,12 @@ class ActionModule(AvdActionPlugin):
         # Phase 2: Validation using multithreading.
         if templated_data:
             phase_2_start = perf_counter()
+
+            # Dump store to a file and initialize it.
+            schemas_path = Path(output_dir) / "schemas.json"
+            schema_tool = EosDesignsAvdSchemaTools()
+            schema_tool.avdschema.dump_store(output_path=schemas_path, gzip_output=False)
+            init_store_from_file(file=schemas_path)
 
             with ThreadPoolExecutor(max_workers=ansible_forks) as thread_pool:
                 results_iterator = thread_pool.map(_validate_host_worker, templated_data)

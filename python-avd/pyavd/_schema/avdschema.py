@@ -3,6 +3,9 @@
 # that can be found in the LICENSE file.
 from __future__ import annotations
 
+from gzip import open as gzip_open
+from json import dump as json_dump
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pyavd._errors import AristaAvdError, AvdSchemaError
@@ -166,3 +169,22 @@ class AvdSchema:
             msg = f"The datapath '{datapath}' does not have a default value"
             raise AvdSchemaError(msg)
         return subschema["default"]
+
+    def dump_store(self, output_path: str | Path, gzip_output: bool = False) -> None:
+        """Dump the internal store to a JSON file."""
+        path = Path(output_path)
+
+        # Open file handler based on compression request
+        if gzip_output:
+            # 'wt' is write text mode, required for json.dump on a gzip file
+            opener = gzip_open(path, "wt", encoding="utf-8") if gzip_output else path.open("w", encoding="utf-8")  # noqa: SIM115
+        else:
+            opener = path.open("w", encoding="utf-8")
+
+        try:
+            with opener as f:
+                json_dump(self.store, f, indent=4)
+        except Exception as e:
+            # Catching generic IO or JSON serialization errors
+            msg = f"Failed to dump store to {path}. Error: {e}"
+            raise AvdSchemaError(msg) from e
