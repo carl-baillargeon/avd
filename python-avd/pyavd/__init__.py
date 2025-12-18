@@ -1,16 +1,16 @@
 # Copyright (c) 2023-2025 Arista Networks, Inc.
 # Use of this source code is governed by the Apache License 2.0
 # that can be found in the LICENSE file.
-from .get_avd_facts import get_avd_facts, get_avd_facts_v2
+from .get_avd_facts import get_avd_facts
 from .get_device_config import get_device_config
 from .get_device_doc import get_device_doc
-from .get_device_structured_config import get_device_structured_config, get_device_structured_config_v2
+from .get_device_structured_config import get_device_structured_config
 from .get_device_test_catalog import get_device_test_catalog
 from .get_fabric_documentation import get_fabric_documentation
-from .load_inputs import load_inputs
+from .load_design import load_design
+from .load_eos_config import load_eos_config
 from .validate_inputs import validate_inputs
 from .validate_structured_config import validate_structured_config
-from .validation_result import ValidationResult
 
 """ Library for running Arista AVD in Python
 """
@@ -20,19 +20,17 @@ PYAVD_PRERELEASE = ""  # Set this to aN or bN for alpha and beta releases of pya
 __author__ = "Arista Networks"
 __copyright__ = "Copyright 2023-2024 Arista Networks"
 __license__ = "Apache 2.0"
-__version__ = "6.0.0.dev3"
+__version__ = "6.0.0.dev5"
 
 __all__ = [
-    "ValidationResult",
     "get_avd_facts",
-    "get_avd_facts_v2",
     "get_device_config",
     "get_device_doc",
     "get_device_structured_config",
-    "get_device_structured_config_v2",
     "get_device_test_catalog",
     "get_fabric_documentation",
-    "load_inputs",
+    "load_design",
+    "load_eos_config",
     "validate_inputs",
     "validate_structured_config",
 ]

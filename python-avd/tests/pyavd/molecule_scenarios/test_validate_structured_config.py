@@ -6,11 +6,10 @@ from copy import deepcopy
 import pytest
 
 from pyavd import validate_structured_config
-from pyavd._errors import AvdValidationError
-from pyavd.avd_schema_tools import AvdSchemaTools
+from pyavd.api.schemas import EOSConfig
 from tests.models import MoleculeHost
 
-SCHEMA = AvdSchemaTools(schema_id="eos_cli_config_gen").avdschema._schema
+VALID_STRUCTURED_CONFIG_KEYS = EOSConfig._fields.keys()
 
 
 @pytest.mark.molecule_scenarios(
@@ -42,9 +41,9 @@ def test_validate_structured_config_with_valid_data(molecule_host: MoleculeHost)
     else:
         structured_config = deepcopy(molecule_host.structured_config)
 
-    validation_result = validate_structured_config(structured_config)
-    assert validation_result.validation_errors == []
-    assert validation_result.failed is False
+    validated_data_result = validate_structured_config(structured_config)
+    assert validated_data_result.validation_result.violations == []
+    assert validated_data_result.validated_data is not None
 
 
 @pytest.mark.molecule_scenarios(
@@ -61,7 +60,7 @@ def test_validate_structured_config_with_invalid_data(molecule_host: MoleculeHos
     updated = False
     # Insert a bad key in a random dict (making sure the dict is covered by the schema)
     for key, value in structured_config.items():
-        if not isinstance(value, dict) or "structured_config" in key or key not in SCHEMA["keys"]:
+        if not isinstance(value, dict) or "structured_config" in key or key not in VALID_STRUCTURED_CONFIG_KEYS:
             continue
         value.update({"invalid_key": "some_value"})
         updated = True
@@ -71,8 +70,7 @@ def test_validate_structured_config_with_invalid_data(molecule_host: MoleculeHos
     if not updated:
         structured_config.update({"router_bgp": {"invalid_key": "some_value"}})
 
-    validation_result = validate_structured_config(structured_config)
-    assert validation_result.failed is True
-    assert len(validation_result.validation_errors) >= 1
-    assert isinstance(validation_result.validation_errors[0], AvdValidationError)
-    assert "invalid_key" in str(validation_result.validation_errors[0])
+    validated_data_result = validate_structured_config(structured_config)
+    assert validated_data_result.validated_data is None
+    assert len(validated_data_result.validation_result.violations) >= 1
+    assert validated_data_result.validation_result.violations[0].message == "Invalid key."

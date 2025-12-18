@@ -7,17 +7,29 @@ import json
 import logging
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from ansible.errors import AnsibleActionFail
 from ansible.plugins.action import ActionBase, display
 
-from ansible_collections.arista.avd.plugins.plugin_utils.schema.avdschematools import AvdSchemaTools
-from ansible_collections.arista.avd.plugins.plugin_utils.utils import PythonToAnsibleContextFilter, PythonToAnsibleHandler, YamlLoader, cprofile, get_templar
+from ansible_collections.arista.avd.plugins.plugin_utils.utils import (
+    PythonToAnsibleContextFilter,
+    PythonToAnsibleHandler,
+    YamlLoader,
+    build_result_message,
+    cprofile,
+    get_templar,
+    parse_validation_result,
+)
+
+if TYPE_CHECKING:
+    from pyavd import get_device_config, get_device_doc, validate_structured_config
+    from pyavd._utils import strip_empties_from_dict, template
+    from pyavd.j2filters import add_md_toc
 
 try:
-    from pyavd import get_device_config, get_device_doc
+    from pyavd import get_device_config, get_device_doc, validate_structured_config
     from pyavd._utils import strip_empties_from_dict, template
     from pyavd.j2filters import add_md_toc
 
@@ -40,7 +52,6 @@ ARGUMENT_SPEC = {
     "config_filename": {"type": "str"},
     "documentation_filename": {"type": "str"},
     "read_structured_config_from_file": {"type": "bool", "default": True},
-    "validation_mode": {"type": "str", "default": "error"},
     "generate_device_config": {"type": "bool", "default": True},
     "generate_device_doc": {"type": "bool", "default": True},
     "device_doc_toc": {"type": "bool", "default": True},
@@ -52,7 +63,7 @@ class ActionModule(ActionBase):
     """Action Module for eos_cli_config_gen."""
 
     @cprofile()
-    def run(self, tmp: Any = None, task_vars: dict | None = None) -> None:
+    def run(self, tmp: Any = None, task_vars: dict | None = None) -> dict:
         """Ansible Action entry point."""
         if task_vars is None:
             task_vars = {}
@@ -88,9 +99,8 @@ class ActionModule(ActionBase):
 
             LOGGER.debug("Validating structured configuration...")
             # result dict will be in-place updated.
-            self.validate_task_vars(
+            validated_task_vars = self.validate_task_vars(
                 hostname=task_vars["inventory_hostname"],
-                validation_mode=validated_args["validation_mode"],
                 task_vars=task_vars,
                 result=result,
             )
@@ -107,7 +117,7 @@ class ActionModule(ActionBase):
         try:
             if validated_args["generate_device_config"]:
                 LOGGER.debug("Rendering configuration...")
-                device_config = get_device_config(task_vars)
+                device_config = get_device_config(validated_task_vars)
 
                 if has_custom_templates:
                     LOGGER.debug("Rendering config custom templates...")
@@ -124,7 +134,7 @@ class ActionModule(ActionBase):
 
             if validated_args["generate_device_doc"]:
                 LOGGER.debug("Rendering documentation...")
-                device_doc = get_device_doc(task_vars, add_md_toc=False)
+                device_doc = get_device_doc(validated_task_vars, add_md_toc=False)
 
                 if has_custom_templates:
                     LOGGER.debug("Rendering documentation custom templates...")
@@ -201,15 +211,26 @@ class ActionModule(ActionBase):
 
         return task_vars
 
-    def validate_task_vars(self, hostname: str, validation_mode: str, task_vars: dict, result: dict) -> None:
-        # Load schema tools for input schema
-        input_schema_tools = AvdSchemaTools(
-            hostname=hostname,
-            ansible_display=display,
-            schema_id="eos_cli_config_gen",
-            validation_mode=validation_mode,
-        )
-        result.update(input_schema_tools.convert_and_validate_data(task_vars))
+    def validate_task_vars(self, hostname: str, task_vars: dict, result: dict) -> dict:
+        """
+        Validate inputs and emit warnings and errors via Ansible display and in-place update the given result.
+
+        To simplify type checking this always return a dict even if validation fails.
+        The caller should check for result['failed'].
+        """
+        try:
+            validated_data_result = validate_structured_config(task_vars)
+        except (TypeError, ValueError, RecursionError) as e:
+            msg = f"Unable to load structured config from the given data: {e}"
+            raise ValueError(msg) from e
+
+        validated_inputs: dict = json.loads(validated_data_result.validated_data) if validated_data_result.validated_data is not None else {}
+        validation_errors = parse_validation_result(validated_data_result.validation_result, hostname, display)
+        if validation_errors:
+            result["failed"] = True
+            result["msg"] = build_result_message(validation_errors)
+
+        return validated_inputs
 
     def render_template_with_ansible_templar(self, task_vars: dict, templatefile: str) -> str:
         """Render a template with the Ansible Templar."""

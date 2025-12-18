@@ -8,49 +8,58 @@ import json
 import pstats
 from collections import ChainMap
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from json import loads as json_loads
 
 from ansible.errors import AnsibleActionFail
 from ansible.parsing.yaml.dumper import AnsibleDumper
 from ansible.plugins.action import ActionBase, display
 
-from ansible_collections.arista.avd.plugins.plugin_utils.pyavd_wrappers import RaiseOnUse
 from ansible_collections.arista.avd.plugins.plugin_utils.utils import (
     ANSIBLE_ABOVE_2_19,
     ActionPluginVars,
     build_result_message,
     get_templar,
-    parse_load_inputs_result,
+    parse_validation_result,
 )
 
-PLUGIN_NAME = "arista.avd.eos_designs_facts"
-
 if TYPE_CHECKING:
+    from ansible.playbook.task import Task
     from ansible.template import Templar
 
-try:
-    from pyavd import load_inputs
+    from pyavd import load_design
     from pyavd._eos_designs.eos_designs_facts.get_facts import get_facts
     from pyavd._eos_designs.schema import EosDesigns
     from pyavd._errors import AristaAvdError
     from pyavd.api.pool_manager import PoolManager
-except ImportError as e:
-    get_facts = load_inputs = EosDesigns = SharedUtils = PoolManager = RaiseOnUse(
-        AnsibleActionFail(
-            f"The '{PLUGIN_NAME}' plugin requires the 'pyavd' Python library. Got import error",
-            orig_exc=e,
-        ),
-    )
+
+try:
+    from pyavd import load_design
+    from pyavd._eos_designs.eos_designs_facts.get_facts import get_facts
+    from pyavd._errors import AristaAvdError
+    from pyavd.api.pool_manager import PoolManager
+
+    HAS_PYAVD = True
+except ImportError:
+    HAS_PYAVD = False
 
 
 class ActionModule(ActionBase):
+    _task: Task
+    _templar: Templar
+
     def run(self, tmp: Any = None, task_vars: dict | None = None) -> dict:
         if task_vars is None:
             task_vars = {}
 
         result = super().run(tmp, task_vars)
         del tmp  # tmp no longer has any effect
+
+        if not HAS_PYAVD:
+            msg = "The arista.avd.eos_designs_facts' plugin requires the 'pyavd' Python library. Got import error"
+            raise AnsibleActionFail(msg)
+
+        self._task.args = cast("dict", self._task.args)
 
         cprofile_file = self._task.args.get("cprofile_file")
         if cprofile_file:
@@ -60,7 +69,6 @@ class ActionModule(ActionBase):
         # Only template output on ansible versions < 2.19.
         self.template_output = bool(self._task.args.get("template_output", False)) and not ANSIBLE_ABOVE_2_19
 
-        self._validation_mode = self._task.args.get("validation_mode")
         self._digital_twin = self._task.args.get("digital_twin", False)
         output_dir = self._task.args.get("output_dir")
 
@@ -166,18 +174,16 @@ class ActionModule(ActionBase):
             host_hostvars = dict(hostvars[host])
 
             # Load input vars into the EosDesigns data class.
-            host_result = load_inputs(host_hostvars)
+            host_result = load_design(host_hostvars)
 
-            data_validation_errors += parse_load_inputs_result(
-                load_inputs_result=host_result, hostname=host, ansible_display=display, validation_mode=self._validation_mode
-            )
+            data_validation_errors += parse_validation_result(validation_result=host_result.validation_result, hostname=host, ansible_display=display)
 
-            if data_validation_errors:
+            if data_validation_errors or host_result.design is None:
                 # Quickly continue if data validation failed
                 result["failed"] = True
                 continue
 
-            all_inputs[host] = host_result.inputs
+            all_inputs[host] = host_result.design
             all_hostvars[host] = host_hostvars
 
         # Build result message

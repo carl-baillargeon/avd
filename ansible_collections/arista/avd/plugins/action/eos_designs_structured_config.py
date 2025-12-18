@@ -9,39 +9,40 @@ import logging
 from pathlib import Path
 import pstats
 from collections import ChainMap
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from ansible.errors import AnsibleActionFail
 from ansible.parsing.yaml.dumper import AnsibleDumper
 from ansible.plugins.action import ActionBase, display
 
-from ansible_collections.arista.avd.plugins.plugin_utils.pyavd_wrappers import RaiseOnUse
 from ansible_collections.arista.avd.plugins.plugin_utils.utils import (
     ANSIBLE_ABOVE_2_19,
     ActionPluginVars,
     AvdSwitchFactsDefaultDict,
     build_result_message,
     get_templar,
-    parse_load_inputs_result,
+    parse_validation_result,
     write_file,
 )
 
-PLUGIN_NAME = "arista.avd.eos_designs_structured_config"
-try:
-    from pyavd import load_inputs
-    from pyavd._eos_designs.structured_config import get_structured_config_v2
-    from pyavd._eos_designs.schema import EosDesigns
+if TYPE_CHECKING:
+    from pyavd import load_design
+    from pyavd._eos_designs.structured_config import get_structured_config
     from pyavd._schema.avdschema import AvdSchema
     from pyavd._utils import get, merge, strip_null_from_data
     from pyavd._utils import template as templater
-except ImportError as e:
-    load_inputs = get_structured_config_v2 = EosDesigns = get = merge = RaiseOnUse(
-        AnsibleActionFail(
-            f"The '{PLUGIN_NAME}' plugin requires the 'pyavd' Python library. Got import error",
-            orig_exc=e,
-        ),
-    )
+
+try:
+    from pyavd import load_design
+    from pyavd._eos_designs.structured_config import get_structured_config
+    from pyavd._schema.avdschema import AvdSchema
+    from pyavd._utils import get, merge, strip_null_from_data
+    from pyavd._utils import template as templater
+
+    HAS_PYAVD = True
+except ImportError:
+    HAS_PYAVD = False
 
 LOGGER = logging.getLogger()
 
@@ -53,6 +54,10 @@ class ActionModule(ActionBase):
 
         result = super().run(tmp, task_vars)
         del tmp  # tmp no longer has any effect
+
+        if not HAS_PYAVD:
+            msg = "The 'arista.avd.eos_designs_structured_config' plugin requires the 'pyavd' Python library. Got import error"
+            raise AnsibleActionFail(msg)
 
         cprofile_file = self._task.args.get("cprofile_file")
         if cprofile_file:
@@ -78,7 +83,6 @@ class ActionModule(ActionBase):
         # Only template output on ansible versions < 2.19.
         template_output = bool(self._task.args.get("template_output", False)) and not ANSIBLE_ABOVE_2_19
 
-        validation_mode = self._task.args.get("validation_mode")
         digital_twin = self._task.args.get("digital_twin", False)
 
         # Get updated templar instance to be passed along to our simplified "templater"
@@ -118,7 +122,7 @@ class ActionModule(ActionBase):
 
         # Get Structured Config from modules in PyAVD using internal api so we can supply our own templar
         try:
-            structured_config = get_structured_config_v2(
+            structured_config = get_structured_config(
                 hostname=hostname,
                 inputs=EosDesigns._load(host_hostvars),
                 #inputs=load_inputs_result.inputs,
